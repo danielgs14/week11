@@ -1,0 +1,180 @@
+---
+title: "Simple Linear Regression Exercise"
+author: "Dr. Luis Malpica, based on ideas from a stats in R course by Dr. Brett Favaro"
+date: "April, 2020"
+output:
+  pdf_document:
+    toc: yes
+  html_document:
+    theme: united
+    toc: yes
+editor_options: 
+  chunk_output_type: console
+---
+
+# Introduction
+You will run a simple linear regression model on a simple dataset ("data/grazing.csv"), it contains data on seed production of a plant. Hypothesis is that the seed production (# of seeds) is based on the width of the root of the plant.
+
+Main variables are:
+- Seeds = # of seeds produced by the plant, this will be your response (Y) variable
+- Root = width of the plant root, this will be your predictive (X) variable
+
+# Install required packages & R custom made functions if needed
+```{r}
+library(tidyverse)
+source("./Functions/6003Functions.R")
+```
+
+# Load & clean up data steps
+```{r}
+# Read in data
+mydata <- read.table("data/grazing.csv", header=TRUE, sep=",")
+
+head(mydata)
+#always remember to tidy your data and to explore it with the eigth recommended steps seen before
+#data is simple, so no further verification is required
+
+```
+
+# Fit linear model to data (X as continuous variable)
+```{r}
+fit <- lm(Seed ~ Root, data=mydata)
+
+mydata$predicted <- predict(fit)
+mydata$residuals <- residuals(fit)
+
+plot_sr <- ggplot(mydata, aes(x = Root, y = Seed)) +
+  geom_point() + theme_classic()
+
+plot_sr + geom_smooth(method = "lm", se=FALSE, color="darkblue")
+
+# without model but with predicted values
+plot_sr + geom_point(aes(y=predicted), shape=1, color="blue")
+
+# add residuals
+plot_sr + geom_point(aes(y=predicted), shape=1, color="blue") +
+  geom_segment(aes(xend=Root, yend=predicted), alpha=0.5, color="salmon")
+
+# line&residuals
+plot_sr + geom_segment(aes(xend=Root, yend=predicted), alpha=0.5, color="red") +
+  geom_smooth(method="lm", se=FALSE, color="darkblue")
+
+```
+
+# Model diagnostics & output exploration
+```{r}
+par(mfrow = c(2,2))
+plot(fit) 
+par(mfrow = c(1,1))
+
+# histogram to analyze residuals
+hist(residuals(fit), breaks=10)
+
+# kind of normal distribution
+
+# model output
+summary(fit)
+
+```
+
+# >>>>>> Model output interpretation <<<<<<
+Describe here what is the model output interpretation obtained above, recall differences between magnitude of effect and strenght of evidence of model.
+
+Some ideas:
+Beta[0] = -41.286; having a negative value for explaning biological measurements on this model makes no sense, so we'll have to readjust 
+Beta[1] = 14.022; 14.02 more seeds will be produced for every unit in root width  
+R-squared = 0.7073 for multiple, 0.6996 for adjusted. Around 70% of variance of seed production is explained by the root width 
+p-value of model = model has >95% confidence level to reject null hypothesis
+
+
+# Model visualization
+```{r}
+modelplot <- ggplot(data=mydata, aes(x=Root, y=Seed)) +
+  geom_smooth(method="lm", se=FALSE, color="darkblue") +
+  geom_point() +
+  theme_classic() 
+
+modelplot
+
+#confidence intervals
+ci <- predict(fit, interval="confidence", level = 0.95)
+lwr <- ci[,2] 
+upr <- ci[,3] 
+
+#option 1
+
+modelplot + geom_smooth(method=lm, se=TRUE) #se as confidence intervals
+
+# Option 2: Use our CI's estimated above
+modelplot + geom_line(aes(y=upr, x=mydata$Root), col="blue") + 
+  geom_line(aes(y=lwr, x=mydata$Root), col="blue") 
+
+#regression equation
+modelplot <- ggplot(mydata, aes(x = Root, y = Seed)) + 
+  geom_point() +
+    geom_smooth(method="lm", se=FALSE, color="darkgrey") +
+  geom_line(aes(y=upr, x=mydata$Root), col="red") + 
+  geom_line(aes(y=lwr, x=mydata$Root), col="red") +
+  geom_text(x = 8, y = 23, label=lm_eqn(fit), parse=TRUE, size=4)  +
+  theme_bw()
+
+modelplot
+
+```
+
+# Fit Linear Model to data (X as categorical variable)
+Now let's turn root width into a categorical variable, you could for example create group levels based on the root width (e.g. small, medium and large).
+You could also compare results from a SLR model compared to running a simple hypothesis testing test such as a t-test or ANOVA
+```{r}
+# Simple visualization of the model
+plot(Seed ~ Root, 
+      data=mydata, pch=16,
+     ylim=c(-70, 160),
+     xlim=c(-2, 12))
+abline(fit, col="darkgrey", lwd=2)
+
+
+# Simulate predicted values and add to plot
+md <- seq(0, 11, length = 15)
+Beta <- coef(fit)
+for (i in 1:15){
+  mu <- Beta[1] + Beta[2] * md[i]
+  yi <- rnorm(50, mean = mu, sd = summary(fit)$sigma)
+  points(x = jitter(rep(md[i], 50)), 
+         y = jitter(yi), 
+         col = grey(0.5), 
+         pch = 16, 
+         cex = 1)
+}
+abline(h = 0, lty=2)
+
+
+#-------------------------------------------#
+# We can further divide our categorical variable into three or more groups
+
+mydata2 <- mydata %>%
+  mutate(widthroot = ifelse(Root < 5, "Level 1 (<5)", 
+                            ifelse(Root < 13, "Level 2 (6-12)", "Level 3 (14-23)")))
+
+mydata2$widthroot <- as.factor(mydata2$widthroot)
+
+plot(Seed~widthroot, 
+     data=mydata2, xlab="Number of storms (categorical)")
+
+categorical_lm <- lm(Seed ~ widthroot, data=mydata2)
+
+summary(categorical_lm)
+
+# This is just like running an ANOVA
+anova_version <- aov(Seed ~ widthroot, data=mydata2)
+summary(anova_version)
+
+```
+
+Describe here the model output interpretation obtained above, considering magnitude of effect and strenght of evidence of model. Also, if you ran simple hypothesis testing tests contrast similitudes and differences between model outputs (e.g. SLR vs t-test and/or SLR vs ANOVA)
+
+Some ideas:
+Beta[0] = 19.29; makes more sense! 
+Beta[1] = 43.37; for every increase in one unit fo root width, 43.37 seeds will be produced
+R-squared = now, around 20% of variation in seed production is explained by root width
+p-value of model = with over 95% of confidence level, we can use this model to reject null hypothesis

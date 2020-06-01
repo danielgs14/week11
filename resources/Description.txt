@@ -1,0 +1,35 @@
+Dr. Luis Malpica Cruz
+EDA-R
+Week 11: Simple Linear Regression
+
+Background:
+This is the project folder associated with week 11 of EDA-R. This week focuses on simple linear regression.
+
+Data for this exercise was visually and manually extracted from Figure 7A from:
+
+Huang et al. (2017), Sooty tern (Onychoprion fuscatus) survival, oil spills, shrimp fisheries, and hurricanes. PeerJ 5:e3287; DOI 10.7717/peerj.3287
+
+These data was used to illustrate some issues around linear regression, data might be off a bit on either Y or X.
+
+
+Week11_SLR
+|
+|- Week11_SLR.Rproj 	
+|
+|- Description.txt 	    # You're reading it.
+|
+|- data/                
+|  +- 6003_terns.csv    # Dataset from above paper
+|  +- grazing.csv    # Dataset for activity
+|
+|- functions/                      
+|  +- 6003Functions.R  # Script containing a few custom made functions
+|
+|- analysis/            
+|  +- 001_SLR.Rmd       # Simple Linear Regression analysis code
+|  +- 002_SLR_Act.Rmd   # Simple Linear Regression activity code
+|  +- 003_SLR_Sol.Rmd   # Simple Linear Regression activity solution code
+|
+|- source_paper/
+|  +- Huang et al (2017) - Sooty tern survival oil spills shrimp fisheries and hurricanes.pdf # PDF of the source paper
+|

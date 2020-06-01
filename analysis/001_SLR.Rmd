@@ -1,0 +1,229 @@
+---
+title: "Simple Linear Regression Example"
+author: "Dr. Luis Malpica, modified from a stats in R course by Dr. Brett Favaro"
+date: "April, 2020"
+output:
+  pdf_document:
+    toc: yes
+  html_document:
+    theme: united
+    toc: yes
+editor_options: 
+  chunk_output_type: console
+---
+
+# Introduction
+We will run a simple linear regression model on a dataset on tern wreckages due to hurricanes off SE USA, raw data available from: https://peerj.com/articles/3287/
+
+Main variables are:
+- wrecks = # of dead birds in a given two-week period, this will be our response (Y) variable
+- hurricanes = # of hurricanes in a two week period, and this our predictive (X) variable
+
+More details on model output interpretation is on the powerpoint presentation provided in a pdf file for the 11th week of the course.
+
+# Install required packages & R custom made functions
+```{r}
+# If you don't yet have the following packages run:
+# install.packages("tidyverse")
+library(tidyverse)
+
+# Load custom R functions
+source("D:/UABC/II_Semestre/Datos_R/week11/functions/6003Functions.R")
+
+```
+
+# Load & clean up data steps
+```{r}
+# Read in data
+terns <- read.csv("./data/6003_terns.csv")
+
+# Remember the clean up data steps
+# STEP 1: Did it load correctly?
+# STEP 2: Check data types
+# STEP 3: Check for missing or impossible values
+# STEP 4: Check for typos and broken factors
+
+# Skip data verification because dataset is very simple
+head(terns)
+
+# y =  wrecks = dead birds in a given two-week period
+# x = hurricanes = # of hurricanes in a two week period
+
+# Also, remember the "8 steps of Data Exploration", check for:
+# 1. Outliers Y and X
+# 2. Homogeneity Y
+# 3. Normality Y
+# 4. Zero trouble Y
+# 5. Collinearity X('s)
+# 6. Relationships Y and X
+# 7. Interactions X('s)
+# 8. Independence Y
+
+# We will skip this part also...but do this for every dataset you work with as well
+
+```
+
+# Fit linear model to data (X as continuous variable)
+```{r}
+fit <- lm(wrecks ~ hurricanes, data=terns)
+
+# Extract predicted and residuals values
+terns$predicted <- predict(fit)
+terns$residuals <- residuals(fit)
+
+# Basic scatterplot
+a <- ggplot(terns, aes(x = hurricanes, y = wrecks)) +
+  geom_point() + theme_bw() 
+a
+
+# Add a lm
+
+a + geom_smooth(method="lm", se=FALSE, color="darkgrey")
+
+# Without lm, but with predicted values 
+
+a + geom_point(aes(y=predicted), shape=1, color="blue")
+
+# With predicted values + residuals
+
+a + geom_point(aes(y=predicted), shape=1, color="blue") +
+  geom_segment(aes(xend=hurricanes, yend=predicted), alpha=0.5, color="red")
+
+# With line and residuals
+
+a + geom_segment(aes(xend=hurricanes, yend=predicted), alpha=0.5, color="red") +
+  geom_smooth(method="lm", se=FALSE, color="blue")
+
+# With residuals visualized as actual squares
+
+x1 <- terns$hurricanes
+x2 <- terns$hurricanes+terns$residuals
+y1 <- terns$predicted
+y2 <- terns$predicted+terns$residuals
+
+a + geom_smooth(method="lm", se=FALSE, color="blue") +
+  geom_rect(aes(xmin=x1, ymin=y1, xmax=x2, ymax=y2), alpha=0.5)
+
+```
+
+# Model diagnostics & output exploration
+```{r}
+# Explore model diagnostics
+# We look for homocedasticity and normality in residuals 
+par(mfrow = c(2,2)) #this tells R to set up a 2x2 grid of 4 plots
+plot(fit) #create the diagnostic plots
+par(mfrow = c(1,1)) #turn off the 4x4 grid setup or all your future plots will go onto a grid
+
+# Explore residuals distribution with a histogram
+hist(residuals(fit), breaks=10)
+# Residuals are normal-ish distributed but homocedasticity is not very well fulfilled
+
+# Let's ignore these big concern and look at model output
+summary(fit)
+# Look at model output interpretation in powerpoint presentation
+
+```
+
+# Model visualization
+```{r}
+# Visualize model & data points
+a <- ggplot(data=terns, aes(x=hurricanes, y=wrecks)) +
+  theme_bw() +
+  geom_point() +
+  geom_smooth(method="lm", se=FALSE, color="darkgrey") 
+a
+
+# Add CIs
+# First estimate them based on our fitted model
+CIs <- predict(fit, interval="confidence", level = 0.95)
+
+lwr <- CIs[,2] # Lower CI
+upr <- CIs[,3] # Upper CI
+
+# Option 1: ggplot2 calculates CIs
+a + geom_smooth(method=lm, se=TRUE) #se = confidence interval
+
+# Option 2: Use our CI's estimated above
+a + geom_line(aes(y=upr, x=terns$hurricanes), col="red") + 
+  geom_line(aes(y=lwr, x=terns$hurricanes), col="red") 
+
+# You could also add the regression equation on the plot
+# Plot model, points, and an equation for the line
+a <- ggplot(terns, aes(x = hurricanes, y = wrecks)) + 
+  geom_point() +
+  theme_bw() +
+  geom_smooth(method="lm", se=FALSE, color="darkgrey") +
+  geom_line(aes(y=upr, x=terns$hurricanes), col="red") + 
+  geom_line(aes(y=lwr, x=terns$hurricanes), col="red") +
+  geom_text(x = 8, y = 23, label=lm_eqn(fit), parse=TRUE, size=6) 
+a
+```
+
+# Model simulation
+Here we will only estimate or predict datapoints based on our fitted model, this will help to illustrate the "inner workings of linear models". This next code estimates a normal distribution around 12 datapoints, each of these distributions is estimated based on the parameters of our fitted model. You do not need to run this for every model you make, it is just for visualization purposes.
+```{r}
+
+# Simple visualization of the model
+plot(wrecks ~ hurricanes, 
+      data=terns, pch=16,
+     ylim=c(-10, 25))
+abline(fit, col="darkgrey", lwd=2)
+
+
+# Simulate predicted values and add to plot
+md <- seq(0, 25, length = 12)
+Beta <- coef(fit)
+for (i in 1:12){
+  mu <- Beta[1] + Beta[2] * md[i]
+  yi <- rnorm(50, mean = mu, sd = summary(fit)$sigma)
+  points(x = jitter(rep(md[i], 50)), 
+         y = jitter(yi), 
+         col = grey(0.5), 
+         pch = 16, 
+         cex = 1)
+}
+abline(h = 0, lty=2)
+
+```
+
+# Fit Linear Model to data (X as categorical variable)
+Now let's turn hurricanes into a categorical variable, we could for example create group levels based on the number of hurricanes
+```{r}
+# We can use the median to divide our categorical variable into two groups
+median(terns$hurricanes) 
+
+terns2 <- terns %>%
+  mutate(numstorms = ifelse(hurricanes < 7, "Level 1", "Level 2"))
+
+terns2$numstorms <- as.factor(terns2$numstorms) # We need these variable as a factor
+
+plot(wrecks ~ numstorms, data=terns2)#, xlab="Number of storms (categorical)")
+
+categorical_lm1 <- lm(wrecks ~ numstorms, data=terns2)
+summary(categorical_lm1)
+
+# This is just like running a t-test
+t.test(terns2$wrecks ~ terns2$numstorms)
+
+#-------------------------------------------#
+# We can further divide our categorical variable into three or more groups
+
+terns3 <- terns %>%
+  mutate(numstorms = ifelse(hurricanes < 5, "Level 1 (<5)", 
+                            ifelse(hurricanes < 13, "Level 2 (6-12)", "Level 3 (14-23)")))
+
+terns3$numstorms <- as.factor(terns3$numstorms)
+
+plot(wrecks~numstorms, 
+     data=terns3, xlab="Number of storms (categorical)")
+
+categorical_lm <- lm(wrecks ~ numstorms, data=terns3)
+
+summary(categorical_lm)
+
+# This is just like running an ANOVA
+anova_version <- aov(wrecks ~ numstorms, data=terns3)
+summary(anova_version)
+
+```
+
